@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
-from viktor import ViktorController
+from viktor import ViktorController, File
 from viktor.external.word import render_word_file, WordFileImage, WordFileTag
 from viktor.parametrization import ViktorParametrization, ActionButton, FileField, DateField, TextField
 from viktor.result import DownloadResult
@@ -31,29 +31,29 @@ class Controller(ViktorController):
     @GeoJSONView('GeoJSON view', duration_guess=1)
     def get_geojson_view(self, params, **kwargs):
         if params.geojson_file:
-            geojson = json.loads(params.geojson_file.getvalue())
-        geojson = {
-          "type": "FeatureCollection",
-          "features": [
-            {
-              "type": "Feature",
-              "properties": {},
-              "geometry": {
-                "type": "Point",
-                "coordinates": []
-              }
+            geojson = json.loads(params.geojson_file.file.getvalue())
+        else:
+            geojson = {
+              "type": "FeatureCollection",
+              "features": [
+                {
+                  "type": "Feature",
+                  "properties": {},
+                  "geometry": {
+                    "type": "Point",
+                    "coordinates": []
+                  }
+                }
+              ]
             }
-          ]
-        }
         return GeoJSONResult(geojson)
 
     @GeometryView('Geometry view', duration_guess=1)
     def get_geometry_view(self, params, **kwargs):
-        geometry = None
+        geometry = geometry = File.from_url("https://github.com/KhronosGroup/glTF-Sample-Models/raw/master/2.0/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb")
         if params.gltf_file:
-            geometry = params.gltf_file
+            geometry = params.gltf_file.file
         return GeometryResult(geometry)
-
 
     def generate_word_document(self, params):
         # Create emtpy components list to be filled later
