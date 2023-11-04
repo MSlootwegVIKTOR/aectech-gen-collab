@@ -7,11 +7,11 @@ import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import * as THREE from "three";
 
 export function App() {
-  const [positions, setProposalPos] = useState<Float32Array | null>();
+  const [positions, setPositions] = useState<Float32Array | null>(null);
 
   useEffect(() => {
     Forma.geometry.getTriangles({ path: "root" }).then((triangles) => {
-      setProposalPos(triangles);
+      setPositions(triangles);
     });
   }, []);
 
@@ -52,7 +52,7 @@ export function App() {
   return (
     <div>
       {positions && <div>{positions.length / 9} triangles</div>}
-      <button onClick={glbExport}>Export</button>
+      {positions && <button onClick={glbExport}>Export</button>}
     </div>
   );
 }
