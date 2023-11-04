@@ -16,6 +16,7 @@ export function App() {
   }, []);
 
   const glbExport = useCallback(async () => {
+    if (!positions) return;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
