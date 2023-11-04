@@ -1,12 +1,127 @@
+import json
+from io import BytesIO
+from pathlib import Path
+
+import numpy as np
+from matplotlib import pyplot as plt
 from viktor import ViktorController
-from viktor.parametrization import ViktorParametrization
+from viktor.external.word import render_word_file, WordFileImage, WordFileTag
+from viktor.parametrization import ViktorParametrization, ActionButton, FileField, DateField, TextField
+from viktor.result import DownloadResult
+from viktor.utils import convert_word_to_pdf
+from viktor.views import GeoJSONView, GeoJSONResult, GeometryView, GeometryResult, PDFView, PDFResult
 
 
 class Parametrization(ViktorParametrization):
-    pass
+    client_name = TextField('Client name')
+    company = TextField('Company')
+    date = DateField('Date')
+    import_from_forma_btn = ActionButton('Import input from Forma', 'import_from_forma')
+    geojson_file = FileField('Upload Geojson file', file_types=['.geojson'])
+    gltf_file = FileField('Upload GLTF file', file_types=['.gltf'])
 
 
 class Controller(ViktorController):
-    label = 'My Entity Type'
+    label = 'Generative Collaboration'
     parametrization = Parametrization
-    
+
+    def import_from_forma(self, params, **kwargs):
+        return
+
+    @GeoJSONView('GeoJSON view', duration_guess=1)
+    def get_geojson_view(self, params, **kwargs):
+        if params.geojson_file:
+            geojson = json.loads(params.geojson_file.getvalue())
+        geojson = {
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "properties": {},
+              "geometry": {
+                "type": "Point",
+                "coordinates": []
+              }
+            }
+          ]
+        }
+        return GeoJSONResult(geojson)
+
+    @GeometryView('Geometry view', duration_guess=1)
+    def get_geometry_view(self, params, **kwargs):
+        geometry = None
+        if params.gltf_file:
+            geometry = params.gltf_file
+        return GeometryResult(geometry)
+
+
+    def generate_word_document(self, params):
+        # Create emtpy components list to be filled later
+        components = []
+
+        # Fill components list with data
+        components.append(WordFileTag("client_name", params.client_name))
+        components.append(WordFileTag("company", params.company))
+        components.append(WordFileTag("date", str(params.date)))
+
+        # Place image
+        figure = self.create_figure(params)
+        word_file_figure = WordFileImage(figure, "figure", width=500)
+        components.append(word_file_figure)
+
+        # Get path to template and render word file
+        template_path = Path(__file__).parent / "files" / "template.docx"
+        with open(template_path, 'rb') as template:
+            word_file = render_word_file(template, components)
+
+        return word_file
+
+    @PDFView("PDF viewer", duration_guess=5)
+    def pdf_view(self, params, **kwargs):
+        word_file = self.generate_word_document(params)
+
+        with word_file.open_binary() as f1:
+            pdf_file = convert_word_to_pdf(f1)
+
+        return PDFResult(file=pdf_file)
+
+    @staticmethod
+    def create_figure(params):
+        def func3(x, y):
+            return (1 - x / 2 + x ** 5 + y ** 3) * np.exp(-(x ** 2 + y ** 2))
+
+        # make these smaller to increase the resolution
+        dx, dy = 0.05, 0.05
+
+        x = np.arange(-3.0, 3.0, dx)
+        y = np.arange(-3.0, 3.0, dy)
+        X, Y = np.meshgrid(x, y)
+
+        # when layering multiple images, the images need to have the same
+        # extent.  This does not mean they need to have the same shape, but
+        # they both need to render to the same coordinate system determined by
+        # xmin, xmax, ymin, ymax.  Note if you use different interpolations
+        # for the images their apparent extent could be different due to
+        # interpolation edge effects
+
+        extent = np.min(x), np.max(x), np.min(y), np.max(y)
+        fig = plt.figure(frameon=False)
+
+        Z1 = np.add.outer(range(8), range(8)) % 2  # chessboard
+        im1 = plt.imshow(Z1, cmap=plt.cm.gray, interpolation='nearest',
+                         extent=extent)
+
+        Z2 = func3(X, Y)
+
+        im2 = plt.imshow(Z2, cmap=plt.cm.viridis, alpha=.9, interpolation='bilinear',
+                         extent=extent)
+        png_data = BytesIO()
+        fig.savefig(png_data, format='png')
+        plt.close()
+
+        return png_data
+
+    def download_word_file(self, params, **kwargs):
+        word_file = self.generate_word_document(params)
+
+        return DownloadResult(word_file, "document.docx")
