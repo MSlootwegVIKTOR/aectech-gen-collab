@@ -676,7 +676,7 @@ if __name__ == '__main__':
         "method": "get_geometry_view",
         "editor_session": editor_session
     }
-    source_domain = get_domain('aec', 'mslootweg@viktor.ai', os.environ['VIKTOR_PASSWORD'], token=None, workspace=str(workspace))
+    source_domain = get_domain('aec', os.environ['VIKTOR_USERNAME'], os.environ['VIKTOR_PASSWORD'], token=None, workspace=str(workspace))
     post_result = source_domain._post_request(f'/entities/{entity_id}/jobs/', data=data, exclude_workspace=False)
     uid = post_result.get('uid')
     if not uid:
