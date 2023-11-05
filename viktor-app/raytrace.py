@@ -8,7 +8,7 @@ import trimesh
 from viktor import File
 
 
-def gltf_raytrace(gltf_file: File = None, glb: File = None, return_image=False, test=False, discretization_value=1.5):
+def get_trimesh_object(gltf_file: File = None, glb: File = None, test=False):
     if test:
         gltf = Path(__file__).parent / 'files' / 'geometry.stl'
         file_type = 'stl'
@@ -22,11 +22,18 @@ def gltf_raytrace(gltf_file: File = None, glb: File = None, return_image=False, 
         # test on a simple mesh
         gltf = Path(__file__).parent / 'files' / 'surroundings.gltf'
         file_type = 'glb'
-    mesh = trimesh.load(gltf, file_type=file_type, force='mesh')
+    return trimesh.load(gltf, file_type=file_type, force='mesh')
+
+
+def gltf_raytrace(gltf_file: File = None, glb: File = None, return_image=False, test=False, discretization_value=1.5, bounding_box=None):
+    mesh = get_trimesh_object(gltf_file, glb, test)
 
     # scene will have automatically generated camera and lights
     scene = mesh.scene()
-    min, max = scene.bounding_box.bounds
+    if bounding_box is not None:
+        min, max = bounding_box
+    else:
+        min, max = scene.bounding_box.bounds
     resolution_x = int((max[0] - min[0]) / discretization_value)
     resolution_y = int((max[1] - min[1]) / discretization_value)
 

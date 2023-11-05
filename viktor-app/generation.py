@@ -8,7 +8,7 @@ from viktor.utils import memoize
 
 from generate_model import generate_model
 from height_map_utils import crop_map, merge_maps
-from raytrace import gltf_raytrace
+from raytrace import gltf_raytrace, get_trimesh_object
 from forma_storage import get_terrain, get_surroundings, store_alternatives_forma, store_alternatives_viktor
 from viktor_subdomain.helper_functions import set_environment_variables
 
@@ -146,16 +146,19 @@ def generate(params):
     surrounding_glb = get_surroundings()
 
     progress_message('Ray-tracing terrain...')
-    terrain_height_map = gltf_raytrace(glb=terrain_glb)
+    terrain_mesh = get_trimesh_object(glb=terrain_glb)
+    scene = terrain_mesh.scene()
+    bounds = scene.bounding_box.bounds
+    terrain_height_map = gltf_raytrace(glb=terrain_glb, bounding_box=bounds)
     progress_message('Ray-tracing surroundings...')
-    surrounding_height_map = gltf_raytrace(glb=surrounding_glb)
+    surrounding_height_map = gltf_raytrace(glb=surrounding_glb, bounding_box=bounds)
 
     for idx, options in enumerate(params.analysis.design_options, start=1):
         progress_message(f"Design option {idx}: Create geometry...")
         alternative_glb: bytes = create_geometry(options)
 
         progress_message(f"Design option {idx}: Ray-tracing...")
-        alternative_height_map = gltf_raytrace(glb=File.from_data(alternative_glb))
+        alternative_height_map = gltf_raytrace(glb=File.from_data(alternative_glb), bounding_box=bounds)
 
         progress_message(f"Design option {idx}: Processing...")
         terrain_height_map_cropped = crop_map(terrain_height_map["map"])

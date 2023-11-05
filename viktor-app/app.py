@@ -32,20 +32,30 @@ Using different platforms, the goal is to demonstrate how different groups and e
     introduction.viktor_and_forma_logo = Image('viktor-and-forma.png', max_width=900)
     introduction.stable_diffusion_logo = Image('Stable-Diffusion-Logo.png', max_width=400)
     analysis = Page('Analysis', views=['get_geometry_view', 'create_result'])
+    analysis.analysis_text = Text(""" # Analyze your Forma design
+Extracting the surroundings and terrain from Forma, we can generate different design options with VIKTOR.
+
+Use the option to get previews of the process.
+    """)
     analysis.select_geometry = OptionField('Select geometry for previews', options=['Surroundings', 'Terrain'], default='Terrain')
+    analysis.design_options_text = Text(""" ## Create a list of design options """)
     analysis.design_options = Table('Design options', default=DESIGN_OPTIONS_DEFAULT)
     analysis.design_options.x = NumberField('x')
     analysis.design_options.y = NumberField('y')
     analysis.design_options.height = NumberField('Height')
     analysis.design_options.depth = NumberField('Depth')
     analysis.design_options.width = NumberField('Width')
+    analysis.run_analysis_text = Text('Run the analysis by clicking on this button')
     analysis.run_analysis_btn = ActionButton('Run analysis', method='run_analysis')
 
     reporting = Page('Reporting', views=['pdf_view'])
-    reporting.client_name = TextField('Client name', "John Doe")
-    reporting.company = TextField('Company', "AECTech inc.")
+    reporting.reporting_text = Text(""" # Automate your reporting
+Take your report template to the next level, and automatically generate reports.
+    """)
+    reporting.client_name = TextField('Client name', default="John Doe")
+    reporting.company = TextField('Company', default="AECTech inc.")
     reporting.date = DateField('Date', default=datetime.date.today())
-    reporting.download_word_document_btn = DownloadButton('Download report as docx', 'download_word_file')
+    reporting.download_word_document_btn = DownloadButton('Download report as docx', method='download_word_file')
 
 
 class Controller(ViktorController):
@@ -59,21 +69,25 @@ class Controller(ViktorController):
     def generate_word_document(self, params):
         # Create emtpy components list to be filled later
         components = []
-
         # Fill components list with data
-        components.append(WordFileTag("client_name", params.analysis.client_name))
-        components.append(WordFileTag("company", params.analysis.company))
-        components.append(WordFileTag("date", str(params.analysis.date)))
+        components.append(WordFileTag("client_name", params.reporting.client_name))
+        components.append(WordFileTag("company", params.reporting.company))
+        components.append(WordFileTag("date", str(params.reporting.date)))
 
         # Place image
+        progress_message('Retrieve geometry...')
         gltf = self._get_gltf(params)
-        figure = gltf_raytrace(gltf, return_image=True)
+
+        progress_message('Do ray-tracing...')
+        figure = gltf_raytrace(glb=gltf, return_image=True)
         image = BytesIO()
         figure.save(image, format='png')
         word_file_figure = WordFileImage(image, "figure", width=500)
         components.append(word_file_figure)
 
         # Get path to template and render word file
+
+        progress_message('Generate report...')
         template_path = Path(__file__).parent / "files" / "template.docx"
         with open(template_path, 'rb') as template:
             word_file = render_word_file(template, components)
