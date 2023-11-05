@@ -90,7 +90,7 @@ export function App() {
       scene,
       async (arrayBuffer: ArrayBuffer) => {
         Forma.extensions.storage.setObject({
-          key: "buildings.glb",
+          key: "surroundings.glb",
           data: arrayBuffer,
         });
       },
