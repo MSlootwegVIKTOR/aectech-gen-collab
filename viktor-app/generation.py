@@ -1,8 +1,9 @@
 import time
 import requests
-import random
 import numpy as np
 import os
+
+from generate_model import generate_model
 
 
 forma_base_url = "https://app.autodeskforma.eu"
@@ -76,26 +77,16 @@ def get_wind_parameters():
     }
 
 
-def analyze(alternative):
-    buildings = [0] * 500 * 500
-    terrain = [0] * 500 * 500
+def analyze(terrain_height_map, terrain_and_buildings_height_map):
+    min_height = min(min(terrain_and_buildings_height_map), min(terrain_height_map))
+    max_height = max(max(terrain_and_buildings_height_map), max(terrain_height_map))
 
-    for i in range(500 * 500):
-        buildings[i] = random.randint(0, 100)
-        terrain[i] = random.randint(0, 100)
-
-    return comfort(buildings, terrain)
-
-
-def comfort(buildings, terrain):
-    min_height = min(min(buildings), min(terrain))
-    max_height = max(max(buildings), max(terrain))
-
-    normalized_buildings = [
-        round((x - min_height) / (max_height - min_height)) for x in buildings
+    normalized_terrain_and_buildings_height_map = [
+        round((x - min_height) / (max_height - min_height))
+        for x in terrain_and_buildings_height_map
     ]
-    normalized_terrain = [
-        round((x - min_height) / (max_height - min_height)) for x in terrain
+    normalized_terrain_height_map = [
+        round((x - min_height) / (max_height - min_height)) for x in terrain_height_map
     ]
 
     start = time.time()
@@ -104,8 +95,8 @@ def comfort(buildings, terrain):
         headers={"Authorization": "Bearer " + token},
         json={
             "heightMaps": {
-                "terrainHeightArray": normalized_terrain,
-                "buildingAndTerrainHeightArray": normalized_buildings,
+                "terrainHeightArray": normalized_terrain_height_map,
+                "buildingAndTerrainHeightArray": normalized_terrain_and_buildings_height_map,
                 "minHeight": min_height,
                 "maxHeight": max_height,
             },
@@ -129,24 +120,42 @@ def comfort(buildings, terrain):
 
 
 def generation_options(site):
-    return [{"x": 0, "y": 0, "height": 100, "rotation": 30}]
+    return [{"x": 0, "y": 0, "height": 100, "depth": 30, "width": 30}]
 
 
 def create_geometry(options):
-    pass
+    return generate_model(options["width"], options["depth"], options["height"])
 
 
-def generate(context, site):
+def create_height_map(glb):
+    return [0] * 500 * 500
+
+
+def merge_height_maps(terrain, surrounding, alternative):
+    return [0] * 500 * 500
+
+
+def generate(terrain_glb, surrounding_glb, site):
     alternatives = []
 
-    for options in generation_options(site):
-        alternative = create_geometry(options)
+    terrain_height_map = create_height_map(terrain_glb)
+    surrounding_height_map = create_height_map(surrounding_glb)
 
-        analyze_result = analyze(alternative)
+    for options in generation_options(site):
+        alternative_glb = create_geometry(options)
+
+        alternative_height_map = create_height_map(alternative_glb)
+
+        analyze_result = analyze(
+            terrain_height_map,
+            merge_height_maps(
+                terrain_height_map, surrounding_height_map, alternative_height_map
+            ),
+        )
 
         score = evaluate(analyze_result)
 
-        alternatives.append({"alternative": alternative, "score": score})
+        alternatives.append({"alternative": alternative_glb, "score": score})
 
     print(alternatives)
 
