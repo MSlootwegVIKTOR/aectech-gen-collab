@@ -2,6 +2,7 @@ import json
 from io import BytesIO
 from pathlib import Path
 
+import PIL
 import numpy as np
 from matplotlib import pyplot as plt
 from viktor import ViktorController, File
@@ -9,8 +10,9 @@ from viktor.external.word import render_word_file, WordFileImage, WordFileTag
 from viktor.parametrization import ViktorParametrization, ActionButton, FileField, DateField, TextField
 from viktor.result import DownloadResult
 from viktor.utils import convert_word_to_pdf
-from viktor.views import GeoJSONView, GeoJSONResult, GeometryView, GeometryResult, PDFView, PDFResult
-
+from viktor.views import GeoJSONView, GeoJSONResult, GeometryView, GeometryResult, PDFView, PDFResult, ImageView, \
+    ImageResult
+from raytrace import gltf_raytrace
 
 class Parametrization(ViktorParametrization):
     client_name = TextField('Client name')
@@ -84,6 +86,13 @@ class Controller(ViktorController):
             pdf_file = convert_word_to_pdf(f1)
 
         return PDFResult(file=pdf_file)
+
+    @ImageView("Ray-tracing", duration_guess=10)
+    def create_result(self, params, **kwargs):
+        pil_image = gltf_raytrace(params.gltf_file, return_image=True)
+        image = BytesIO()
+        pil_image.save(image, format='png')
+        return ImageResult(image)
 
     @staticmethod
     def create_figure(params):

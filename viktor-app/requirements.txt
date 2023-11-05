@@ -1,2 +1,7 @@
 viktor==14.6.1
 numpy
+trimesh
+rtree
+scipy
+# pyglet<2
+
