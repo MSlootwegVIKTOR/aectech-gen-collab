@@ -14,17 +14,22 @@ import numpy as np
 import PIL.Image
 
 import trimesh
+from viktor import File
 
 
-def gltf_raytrace(gltf_file=None, glb=None, return_image=False):
+def gltf_raytrace(gltf_file: File = None, glb=None, return_image=False):
     if gltf_file:
         gltf = BytesIO(gltf_file.getvalue_binary())
+        file_type = 'gltf'
     elif glb:
-        gltf = BytesIO(glb)
+        gltf = BytesIO(glb.getvalue_binary())
+        file_type = 'glb'
     else:
         # test on a simple mesh
         gltf = Path(__file__).parent / 'files' / 'geometry.gltf'
-    mesh = trimesh.load(gltf, force='mesh')
+        file_type = 'gltf'
+    mesh = trimesh.load(gltf, file_type=file_type, force='mesh')
+    mesh = trimesh.Trimesh(vertices=mesh.vertices, faces=mesh.faces, process=False)
 
     # scene will have automatically generated camera and lights
     scene = mesh.scene()

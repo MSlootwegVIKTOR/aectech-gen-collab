@@ -1,8 +1,19 @@
 """This module contains some related functions for a Viktor Sub-domain"""
 import copy
+import os
+from pathlib import Path
 from typing import Dict
 from typing import List
 from typing import Union
+
+
+def set_environment_variables():
+    DOT_ENV_PATH = Path(__file__).parent.parent / '.env'
+    if DOT_ENV_PATH.exists():
+        with DOT_ENV_PATH.open('r') as f:
+            for line in f.readlines():
+                key, val = line.split('=', maxsplit=1)
+                os.environ[key] = val
 
 
 def validate_root_entities_compatibility(source_root_entities, destination_root_entities):

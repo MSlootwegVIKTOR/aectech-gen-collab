@@ -7,12 +7,12 @@ from generate_model import generate_model
 from height_map_utils import crop_map, merge_maps
 from raytrace import gltf_raytrace
 from forma_storage import get_terrain, get_surroundings, store_alternatives
+from viktor_subdomain.helper_functions import set_environment_variables
 
-
+set_environment_variables()
 forma_base_url = "https://app.autodeskforma.eu"
 FORMA_PROJECT_ID = os.getenv("FORMA_PROJECT_ID", "pro_sk5xhdofb7")
-FORMA_TOKEN = os.getenv("FORMA_TOKEN", "")
-
+FORMA_TOKEN = os.getenv("FORMA_TOKEN", "bkhFR0hMeDk4OTJUaXFsTFZaQmJjbEdjYUVwMUcya2Q6aXJMTDZrOXJ4elRGaTlnWA==")
 
 def get_wind_parameters():
     # res = requests.get(

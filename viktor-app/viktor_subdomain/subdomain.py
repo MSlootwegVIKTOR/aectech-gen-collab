@@ -21,12 +21,7 @@ from helper_functions import validate_root_entities_compatibility
 # ============================== Authentication related classes and constants ============================== #
 _STANDARD_HEADERS = {'Content-Type': "application/json"}
 CLIENT_ID = "e17LqAF9OGdZ4fVwHdDrpUEYQrWldqNVpvBdS1lb"
-DOT_ENV_PATH = Path(__file__).parent.parent / '.env'
-if DOT_ENV_PATH.exists():
-    with DOT_ENV_PATH.open('r') as f:
-        for line in f.readlines():
-            key, val = line.split('=', maxsplit=1)
-            os.environ[key] = val
+
 
 
 class AuthenticationDetails(TypedDict):
