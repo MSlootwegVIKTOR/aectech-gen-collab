@@ -7,18 +7,39 @@ import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import * as THREE from "three";
 
 export function App() {
-  const [positions, setPositions] = useState<Float32Array | null>(null);
+  const [terrainPositions, setTerrainPositions] = useState<Float32Array | null>(
+    null
+  );
+  const [perBuildingPositions, setPerBuildingPositions] = useState<
+    Float32Array[]
+  >([]);
 
   useEffect(() => {
-    Forma.geometry.getTriangles({ path: "root" }).then((triangles) => {
-      setPositions(triangles);
+    Forma.geometry.getPathsByCategory({ category: "terrain" }).then((paths) => {
+      Forma.geometry.getTriangles({ path: paths[0] }).then((triangles) => {
+        setTerrainPositions(triangles);
+      });
     });
+    Forma.geometry
+      .getPathsByCategory({ category: "building" })
+      .then((paths) => {
+        console.log(paths.length);
+        const promises = paths.map((path) => {
+          return Forma.geometry.getTriangles({ path });
+        });
+        Promise.all(promises).then((per_building_positions) => {
+          setPerBuildingPositions(per_building_positions);
+        });
+      });
   }, []);
 
-  const glbExportToStorage = useCallback(async () => {
-    if (!positions) return;
+  const terrainGlbExportToStorage = useCallback(async () => {
+    if (!terrainPositions) return;
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(terrainPositions, 3)
+    );
 
     const edges = new THREE.EdgesGeometry(geometry);
     const line = new THREE.LineSegments(
@@ -36,19 +57,58 @@ export function App() {
 
     exporter.parse(
       scene,
-      async (gltf) => {
-        const json = JSON.stringify(gltf);
-        Forma.extensions.storage.setObject({ key: "export.gltf", data: json });
+      async (arrayBuffer: ArrayBuffer) => {
+        Forma.extensions.storage.setObject({
+          key: "terrain.glb",
+          data: arrayBuffer,
+        });
       },
       undefined,
-      { binary: false }
+      { binary: true }
     );
-  }, [positions]);
+  }, [terrainPositions]);
+
+  const buildingsGlbToStorage = useCallback(async () => {
+    if (!perBuildingPositions) return;
+
+    const scene = new THREE.Scene();
+    const meshes = perBuildingPositions.map((positions) => {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(positions, 3)
+      );
+
+      const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      return new THREE.Mesh(geometry, material);
+    });
+    scene.add(...meshes);
+
+    const exporter = new GLTFExporter();
+
+    exporter.parse(
+      scene,
+      async (arrayBuffer: ArrayBuffer) => {
+        Forma.extensions.storage.setObject({
+          key: "buildings.glb",
+          data: arrayBuffer,
+        });
+      },
+      undefined,
+      { binary: true }
+    );
+  }, [perBuildingPositions]);
   return (
     <div>
-      {positions && <div>{positions.length / 9} triangles</div>}
-      {positions && (
-        <button onClick={glbExportToStorage}>Store to extension storage</button>
+      {terrainPositions && (
+        <div>
+          <button onClick={terrainGlbExportToStorage}>
+            Store terrain to extension storage
+          </button>
+          <button onClick={buildingsGlbToStorage}>
+            Store buildings to extension storage
+          </button>
+        </div>
       )}
     </div>
   );
