@@ -15,7 +15,7 @@ export function App() {
     });
   }, []);
 
-  const glbExport = useCallback(async () => {
+  const glbExportToStorage = useCallback(async () => {
     if (!positions) return;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -37,14 +37,8 @@ export function App() {
     exporter.parse(
       scene,
       async (gltf) => {
-        const link = document.createElement("a");
         const json = JSON.stringify(gltf);
-        link.href = URL.createObjectURL(
-          new Blob([json], { type: "text/plain" })
-        );
-
-        link.download = "export.gltf";
-        link.click();
+        Forma.extensions.storage.setObject({ key: "export.gltf", data: json });
       },
       undefined,
       { binary: false }
@@ -53,7 +47,9 @@ export function App() {
   return (
     <div>
       {positions && <div>{positions.length / 9} triangles</div>}
-      {positions && <button onClick={glbExport}>Export</button>}
+      {positions && (
+        <button onClick={glbExportToStorage}>Store to extension storage</button>
+      )}
     </div>
   );
 }
