@@ -4,4 +4,4 @@ trimesh
 rtree
 scipy
 # pyglet<2
-
+requests
