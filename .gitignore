@@ -62,6 +62,7 @@ Temporary Items
 env
 .env
 venv/
+.venv/
 
 .coverage
 

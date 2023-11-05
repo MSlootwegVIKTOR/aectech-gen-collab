@@ -41,18 +41,17 @@ export function App() {
       new THREE.BufferAttribute(terrainPositions, 3)
     );
 
-    const edges = new THREE.EdgesGeometry(geometry);
-    const line = new THREE.LineSegments(
-      edges,
-      new THREE.LineBasicMaterial({ color: 0xffffff })
+    const nonIndexedIndex = Array.from(
+      { length: geometry.getAttribute("position").count },
+      (_, index) => index
     );
+    geometry.setIndex(nonIndexedIndex);
 
     const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const mesh = new THREE.Mesh(geometry, material);
     const exporter = new GLTFExporter();
 
     const scene = new THREE.Scene();
-    scene.add(line);
     scene.add(mesh);
 
     exporter.parse(
@@ -64,7 +63,7 @@ export function App() {
         });
       },
       undefined,
-      { binary: true }
+      { binary: true, forceIndices: true }
     );
   }, [terrainPositions]);
 
@@ -78,6 +77,11 @@ export function App() {
         "position",
         new THREE.BufferAttribute(positions, 3)
       );
+      const nonIndexedIndex = Array.from(
+        { length: geometry.getAttribute("position").count },
+        (_, index) => index
+      );
+      geometry.setIndex(nonIndexedIndex);
 
       const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
       return new THREE.Mesh(geometry, material);
