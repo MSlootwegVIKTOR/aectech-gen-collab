@@ -5,11 +5,13 @@ import os
 
 from generate_model import generate_model
 from height_map_utils import crop_map, merge_maps
+from raytrace import gltf_raytrace
+from forma_storage import get_terrain, get_surroundings, store_alternatives
 
 
 forma_base_url = "https://app.autodeskforma.eu"
-projectId = os.getenv("FORMA_PROJECT_ID", "pro_sk5xhdofb7")
-token = os.getenv("FORMA_TOKEN", "")
+FORMA_PROJECT_ID = os.getenv("FORMA_PROJECT_ID", "pro_sk5xhdofb7")
+FORMA_TOKEN = os.getenv("FORMA_TOKEN", "")
 
 
 def get_wind_parameters():
@@ -79,6 +81,9 @@ def get_wind_parameters():
 
 
 def analyze(terrain_height_map, terrain_and_buildings_height_map):
+
+    return np.ma.masked_array(np.array([[1]*200]*200), mask=terrain_height_map == 0)
+
     min_height = min(terrain_and_buildings_height_map.min(), terrain_height_map.min())
     max_height = max(terrain_and_buildings_height_map.max(), terrain_height_map.max())
 
@@ -90,13 +95,10 @@ def analyze(terrain_height_map, terrain_and_buildings_height_map):
         round((x - min_height) / (max_height - min_height)) for x in terrain_height_map.flatten().tolist()
     ]
 
-    print(normalized_terrain_height_map)
-    print(min_height, max_height)
-
     start = time.time()
     res = requests.post(
-        f"{forma_base_url}/api/surrogate/forma-wind-core/experimental?authcontext={projectId}&direction=0&analysisType=comfort&comfortScale=lawson_lddc",
-        headers={"Authorization": "Bearer " + token},
+        f"{forma_base_url}/api/surrogate/forma-wind-core/experimental?authcontext={FORMA_PROJECT_ID}&direction=0&analysisType=comfort&comfortScale=lawson_lddc",
+        headers={"Authorization": "Bearer " + FORMA_TOKEN},
         json={
             "heightMaps": {
                 "terrainHeightArray": normalized_terrain_height_map,
@@ -124,7 +126,9 @@ def analyze(terrain_height_map, terrain_and_buildings_height_map):
 
 
 def generation_options(site):
-    return [{"x": 0, "y": 0, "height": 100, "depth": 30, "width": 30}]
+    return [
+        {"x": 0, "y": 0, "height": 100, "depth": 30, "width": 30}
+    ]
 
 
 def create_geometry(options):
@@ -132,22 +136,22 @@ def create_geometry(options):
 
 
 def create_height_map(glb):
-    l = [[0] * 500] * 500
-    l[0][0] = 1
-
-    return {"x": 0, "y": 0, "map": np.array(l)}
+    return 
 
 
-def generate(terrain_glb, surrounding_glb, site):
+def generate(site):
     alternatives = []
 
-    terrain_height_map = create_height_map(terrain_glb)
-    surrounding_height_map = create_height_map(surrounding_glb)
+    terrain_glb = get_terrain()
+    surrounding_glb = get_surroundings()
+
+    terrain_height_map = gltf_raytrace(terrain_glb)
+    surrounding_height_map = gltf_raytrace(surrounding_glb)
 
     for options in generation_options(site):
         alternative_glb = create_geometry(options)
 
-        alternative_height_map = create_height_map(alternative_glb)
+        alternative_height_map = gltf_raytrace(glb=alternative_glb)
 
         terrain_height_map_cropped = crop_map(terrain_height_map["map"])
         merged_height_map = merge_maps(
@@ -161,11 +165,10 @@ def generate(terrain_glb, surrounding_glb, site):
 
         alternatives.append({"alternative": alternative_glb, "score": score})
 
-    print(alternatives)
+    store_alternatives(alternatives[0:5])
 
 
 def evaluate(analysis_result):
     return analysis_result.mean()
 
-
-generate({}, {}, {})
+generate({})

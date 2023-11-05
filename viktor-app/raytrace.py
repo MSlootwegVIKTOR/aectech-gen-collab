@@ -14,12 +14,13 @@ import numpy as np
 import PIL.Image
 
 import trimesh
-from viktor import File
 
 
-def gltf_raytrace(gltf_file: File=None, return_image=False):
+def gltf_raytrace(gltf_file=None, glb=None, return_image=False):
     if gltf_file:
         gltf = BytesIO(gltf_file.getvalue_binary())
+    elif glb:
+        gltf = BytesIO(glb)
     else:
         # test on a simple mesh
         gltf = Path(__file__).parent / 'files' / 'geometry.gltf'
@@ -28,6 +29,9 @@ def gltf_raytrace(gltf_file: File=None, return_image=False):
     # scene will have automatically generated camera and lights
     scene = mesh.scene()
     min, max = scene.bounding_box.bounds
+
+    [_, y_min, _] = min
+    [x_max, _, _] = max
 
     # any of the automatically generated values can be overridden
     # set resolution, in pixels
@@ -70,7 +74,7 @@ def gltf_raytrace(gltf_file: File=None, return_image=False):
     # create a PIL image from the depth queries
     if return_image:
         return PIL.Image.fromarray(a)
-    return a
+    return {"x": x_max, "y": y_min, "map": a}
 
 
 if __name__ == '__main__':
