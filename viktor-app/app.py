@@ -2,10 +2,7 @@ import json
 from io import BytesIO
 from pathlib import Path
 
-import PIL
 import requests
-import numpy as np
-from matplotlib import pyplot as plt
 from viktor import ViktorController, File
 from viktor.external.word import render_word_file, WordFileImage, WordFileTag
 from viktor.parametrization import ViktorParametrization, ActionButton, FileField, DateField, TextField
