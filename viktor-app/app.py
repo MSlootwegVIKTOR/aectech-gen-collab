@@ -1,20 +1,20 @@
 import datetime
-import json
 from io import BytesIO
 from pathlib import Path
 
 import requests
-from viktor import ViktorController, UserError
+from viktor import ViktorController, UserError, progress_message
 from viktor.external.word import render_word_file, WordFileImage, WordFileTag
 from viktor.parametrization import ViktorParametrization, ActionButton, DateField, TextField, Page, Text, \
-    Image, OptionField, DynamicArray, NumberField, Table
+    Image, OptionField, NumberField, Table, DownloadButton
 from viktor.result import DownloadResult
 from viktor.utils import convert_word_to_pdf
-from viktor.views import GeoJSONView, GeoJSONResult, GeometryView, GeometryResult, PDFView, PDFResult, ImageView, \
+from viktor.views import GeometryView, GeometryResult, PDFView, PDFResult, ImageView, \
     ImageResult
 from raytrace import gltf_raytrace
 from forma_storage import get_surroundings, get_terrain
 from viktor_subdomain.helper_functions import set_environment_variables
+from generation import generate
 
 
 set_environment_variables()
@@ -31,44 +31,30 @@ Using different platforms, the goal is to demonstrate how different groups and e
     """)
     introduction.viktor_and_forma_logo = Image('viktor-and-forma.png', max_width=900)
     introduction.stable_diffusion_logo = Image('Stable-Diffusion-Logo.png', max_width=400)
-    analysis = Page('Analysis', views=['get_geojson_view', 'get_geometry_view', 'pdf_view', 'create_result'])
-    analysis.select_geometry = OptionField('Select geometry', options=['Surroundings', 'Terrain'], default='Terrain')
+    analysis = Page('Analysis', views=['get_geometry_view', 'create_result'])
+    analysis.select_geometry = OptionField('Select geometry for previews', options=['Surroundings', 'Terrain'], default='Terrain')
     analysis.design_options = Table('Design options', default=DESIGN_OPTIONS_DEFAULT)
     analysis.design_options.x = NumberField('x')
     analysis.design_options.y = NumberField('y')
     analysis.design_options.height = NumberField('Height')
     analysis.design_options.depth = NumberField('Depth')
     analysis.design_options.width = NumberField('Width')
+    analysis.run_analysis_btn = ActionButton('Run analysis', method='run_analysis')
 
-    reporting = Page('Reporting')
+    reporting = Page('Reporting', views=['pdf_view'])
     reporting.client_name = TextField('Client name', "John Doe")
     reporting.company = TextField('Company', "AECTech inc.")
     reporting.date = DateField('Date', default=datetime.date.today())
+    reporting.download_word_document_btn = DownloadButton('Download report as docx', 'download_word_file')
 
 
 class Controller(ViktorController):
     label = 'Generative Collaboration'
     parametrization = Parametrization
 
-    @GeoJSONView('GeoJSON view', duration_guess=1)
-    def get_geojson_view(self, params, **kwargs):
-        if params.analysis.geojson_file:
-            geojson = json.loads(params.analysis.geojson_file.file.getvalue())
-        else:
-            geojson = {
-              "type": "FeatureCollection",
-              "features": [
-                {
-                  "type": "Feature",
-                  "properties": {},
-                  "geometry": {
-                    "type": "Point",
-                    "coordinates": []
-                  }
-                }
-              ]
-            }
-        return GeoJSONResult(geojson)
+    def run_analysis(self, params, **kwargs):
+        progress_message('Start generation')
+        generate(params)
 
     def generate_word_document(self, params):
         # Create emtpy components list to be filled later
@@ -94,7 +80,7 @@ class Controller(ViktorController):
 
         return word_file
 
-    @PDFView("PDF viewer", duration_guess=5)
+    @PDFView("Report", duration_guess=5)
     def pdf_view(self, params, **kwargs):
         word_file = self.generate_word_document(params)
 

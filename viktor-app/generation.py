@@ -3,10 +3,13 @@ import requests
 import numpy as np
 import os
 
+from viktor import File, progress_message
+from viktor.utils import memoize
+
 from generate_model import generate_model
 from height_map_utils import crop_map, merge_maps
 from raytrace import gltf_raytrace
-from forma_storage import get_terrain, get_surroundings, store_alternatives
+from forma_storage import get_terrain, get_surroundings, store_alternatives_forma, store_alternatives_viktor
 from viktor_subdomain.helper_functions import set_environment_variables
 
 set_environment_variables()
@@ -125,13 +128,8 @@ def analyze(terrain_height_map, terrain_and_buildings_height_map):
     return masked
 
 
-def generation_options(site):
-    return [
-        {"x": 0, "y": 0, "height": 100, "depth": 30, "width": 30}
-    ]
-
-
-def create_geometry(options):
+@memoize
+def create_geometry(options) -> bytes:
     return generate_model(options["width"], options["depth"], options["height"])
 
 
@@ -139,36 +137,44 @@ def create_height_map(glb):
     return 
 
 
-def generate(site):
+def generate(params):
     alternatives = []
 
+    progress_message('Retrieve terrain...')
     terrain_glb = get_terrain()
+    progress_message('Retrieve surroundings')
     surrounding_glb = get_surroundings()
 
-    terrain_height_map = gltf_raytrace(terrain_glb)
-    surrounding_height_map = gltf_raytrace(surrounding_glb)
+    progress_message('Ray-tracing terrain...')
+    terrain_height_map = gltf_raytrace(glb=terrain_glb)
+    progress_message('Ray-tracing surroundings...')
+    surrounding_height_map = gltf_raytrace(glb=surrounding_glb)
 
-    for options in generation_options(site):
-        alternative_glb = create_geometry(options)
+    for idx, options in enumerate(params.analysis.design_options, start=1):
+        progress_message(f"Design option {idx}: Create geometry...")
+        alternative_glb: bytes = create_geometry(options)
 
-        alternative_height_map = gltf_raytrace(glb=alternative_glb)
+        progress_message(f"Design option {idx}: Ray-tracing...")
+        alternative_height_map = gltf_raytrace(glb=File.from_data(alternative_glb))
 
+        progress_message(f"Design option {idx}: Processing...")
         terrain_height_map_cropped = crop_map(terrain_height_map["map"])
         merged_height_map = merge_maps(
             terrain_height_map, surrounding_height_map, alternative_height_map
         )
         merged_height_map_cropped = crop_map(merged_height_map)
 
+        progress_message(f"Design option {idx}: Analyzing...")
         analyze_result = analyze(terrain_height_map_cropped, merged_height_map_cropped)
 
         score = evaluate(analyze_result)
 
         alternatives.append({"alternative": alternative_glb, "score": score})
 
-    store_alternatives(alternatives[0:5])
+    progress_message(f"Saving results to Forma and VIKTOR...")
+    store_alternatives_forma(alternatives[0:5])
+    store_alternatives_viktor(alternatives)
 
 
 def evaluate(analysis_result):
     return analysis_result.mean()
-
-generate({})

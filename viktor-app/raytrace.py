@@ -8,7 +8,7 @@ import trimesh
 from viktor import File
 
 
-def gltf_raytrace(gltf_file: File = None, glb=None, return_image=False, test=False, discretization_value=1.5):
+def gltf_raytrace(gltf_file: File = None, glb: File = None, return_image=False, test=False, discretization_value=1.5):
     if test:
         gltf = Path(__file__).parent / 'files' / 'geometry.stl'
         file_type = 'stl'

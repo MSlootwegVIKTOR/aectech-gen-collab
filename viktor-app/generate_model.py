@@ -1,12 +1,15 @@
 from ShapeDiverTinySdk import ShapeDiverTinySessionSdk
 import requests
 import os
+from viktor_subdomain.helper_functions import set_environment_variables
 
+
+set_environment_variables()
 ticket = os.getenv("SD_TOKEN", "")
 modelViewUrl = "https://sdr7euc1.eu-central-1.shapediver.com"
 
 
-def generate_model(width, depth, height):
+def generate_model(width, depth, height) -> bytes:
     parameters = {
         "4fe28102-4ab7-4a35-8c93-9d39652d34c7": depth,
         "3d6526a1-9cac-4f4e-afa1-49661f2eba6a": width,

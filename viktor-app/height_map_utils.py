@@ -22,6 +22,9 @@ def merge_maps(terrain, surroundings, alternative):
     sx = alternative["x"] - x
     sy = alternative["y"] - y
     [w, h] = alternative["map"].shape
+    print(sx, type(sx))
+    print(sy, type(sy))
+    print(h, type(h))
     out[sx : sx + w, sy : sy + h] += alternative["map"]
 
     return out
