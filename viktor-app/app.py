@@ -3,6 +3,7 @@ from io import BytesIO
 from pathlib import Path
 
 import PIL
+import requests
 import numpy as np
 from matplotlib import pyplot as plt
 from viktor import ViktorController, File
@@ -21,6 +22,7 @@ class Parametrization(ViktorParametrization):
     import_from_forma_btn = ActionButton('Import input from Forma', 'import_from_forma')
     geojson_file = FileField('Upload Geojson file', file_types=['.geojson'])
     gltf_file = FileField('Upload GLTF file', file_types=['.gltf'])
+    aps_base64_auth = TextField('APS Base 64')
 
 
 class Controller(ViktorController):
@@ -86,6 +88,28 @@ class Controller(ViktorController):
             pdf_file = convert_word_to_pdf(f1)
 
         return PDFResult(file=pdf_file)
+    
+    @staticmethod
+    def get_two_legged_aps_token(base64_auth: str) -> str:
+        two_legged_res = requests.post("https://developer.api.autodesk.com/authentication/v2/token", 
+                                    data={'grant_type': 'client_credentials', 'scope': "data:write"}, 
+                                    headers={
+                                        'Content-Type': 'application/x-www-form-urlencoded', 
+                                        'Accept': "application/json", 
+                                        'Authorization': f"Basic {base64_auth}"})
+        two_legged_res.raise_for_status()
+        access_token = two_legged_res.json()["access_token"]
+        return access_token
+    
+    @GeometryView('Forma Geometry view', duration_guess=1)
+    def get_geometry_view(self, params, **kwargs):
+        if params.aps_base64_auth:
+            aps_token = self.get_two_legged_aps_token(params.aps_base64_auth)
+            object_res = requests.get("https://app.autodeskforma.eu/api/extension-service/installations/8ad1d7f9-4e17-4485-aa14-f2217475b5e0/storage-objects/export.gltf?authcontext=pro_nz1xbbzv0p",allow_redirects=False, headers={"Authorization": f"Bearer {aps_token}"})
+            object_res.raise_for_status()
+            redirect_url = object_res.headers['Location']
+            geometry = File.from_url(redirect_url)
+            return GeometryResult(geometry)
 
     @ImageView("Ray-tracing", duration_guess=10)
     def create_result(self, params, **kwargs):
