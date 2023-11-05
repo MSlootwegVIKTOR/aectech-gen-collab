@@ -4,8 +4,8 @@ from viktor import File
 from viktor_subdomain.helper_functions import set_environment_variables
 
 set_environment_variables()
-FORMA_PROJECT_ID = os.getenv("FORMA_PROJECT_ID", "pro_sk5xhdofb7")
-FORMA_SECRET = os.getenv("FORMA_SECRET", "")
+FORMA_PROJECT_ID = os.getenv("FORMA_PROJECT_ID", "pro_nz1xbbzv0p")
+FORMA_SECRET = os.getenv("FORMA_SECRET", "bkhFR0hMeDk4OTJUaXFsTFZaQmJjbEdjYUVwMUcya2Q6aXJMTDZrOXJ4elRGaTlnWA==")
 
 def get_two_legged_aps_token() -> str:
     two_legged_res = requests.post("https://developer.api.autodesk.com/authentication/v2/token",

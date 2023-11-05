@@ -1,12 +1,3 @@
-"""
-raytrace.py
-----------------
-
-A very simple example of using scene cameras to generate
-rays for image reasons.
-
-Install `pyembree` for a speedup (600k+ rays per second)
-"""
 from io import BytesIO
 from pathlib import Path
 
@@ -17,8 +8,11 @@ import trimesh
 from viktor import File
 
 
-def gltf_raytrace(gltf_file= None, glb=None, return_image=False):
-    if gltf_file:
+def gltf_raytrace(gltf_file: File = None, glb=None, return_image=False, test=False, discretization_value=1.5):
+    if test:
+        gltf = Path(__file__).parent / 'files' / 'geometry.stl'
+        file_type = 'stl'
+    elif gltf_file:
         gltf = BytesIO(gltf_file.getvalue_binary())
         file_type = 'gltf'
     elif glb:
@@ -33,13 +27,15 @@ def gltf_raytrace(gltf_file= None, glb=None, return_image=False):
     # scene will have automatically generated camera and lights
     scene = mesh.scene()
     min, max = scene.bounding_box.bounds
+    resolution_x = int((max[0] - min[0]) / discretization_value)
+    resolution_y = int((max[1] - min[1]) / discretization_value)
 
     [_, y_min, _] = min
     [x_max, _, _] = max
 
     # any of the automatically generated values can be overridden
     # set resolution, in pixels
-    RESOLUTION = [640, 480]
+    RESOLUTION = [resolution_x, resolution_y]
     scene.camera.resolution = RESOLUTION
     # set field of view, in degrees
     # make it relative to resolution so pixels per degree is same
@@ -82,5 +78,5 @@ def gltf_raytrace(gltf_file= None, glb=None, return_image=False):
 
 
 if __name__ == '__main__':
-    pil_image = gltf_raytrace(None, return_image=True)
+    pil_image = gltf_raytrace(return_image=True, test=True)
     pil_image.save('test-image.png', format='png')

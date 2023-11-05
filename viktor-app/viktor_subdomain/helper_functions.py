@@ -13,7 +13,7 @@ def set_environment_variables():
         with DOT_ENV_PATH.open('r') as f:
             for line in f.readlines():
                 key, val = line.split('=', maxsplit=1)
-                os.environ[key] = val
+                os.environ[key] = val.strip()
 
 
 def validate_root_entities_compatibility(source_root_entities, destination_root_entities):

@@ -11,7 +11,7 @@ from viktor_subdomain.helper_functions import set_environment_variables
 
 set_environment_variables()
 forma_base_url = "https://app.autodeskforma.eu"
-FORMA_PROJECT_ID = os.getenv("FORMA_PROJECT_ID", "pro_sk5xhdofb7")
+FORMA_PROJECT_ID = os.getenv("FORMA_PROJECT_ID", "pro_nz1xbbzv0p")
 FORMA_TOKEN = os.getenv("FORMA_TOKEN", "bkhFR0hMeDk4OTJUaXFsTFZaQmJjbEdjYUVwMUcya2Q6aXJMTDZrOXJ4elRGaTlnWA==")
 
 def get_wind_parameters():

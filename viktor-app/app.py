@@ -1,3 +1,4 @@
+import datetime
 import json
 from io import BytesIO
 from pathlib import Path
@@ -5,8 +6,8 @@ from pathlib import Path
 import requests
 from viktor import ViktorController, UserError
 from viktor.external.word import render_word_file, WordFileImage, WordFileTag
-from viktor.parametrization import ViktorParametrization, ActionButton, FileField, DateField, TextField, Page, Text, \
-    Image, OptionField
+from viktor.parametrization import ViktorParametrization, ActionButton, DateField, TextField, Page, Text, \
+    Image, OptionField, DynamicArray, NumberField, Table
 from viktor.result import DownloadResult
 from viktor.utils import convert_word_to_pdf
 from viktor.views import GeoJSONView, GeoJSONResult, GeometryView, GeometryResult, PDFView, PDFResult, ImageView, \
@@ -18,6 +19,10 @@ from viktor_subdomain.helper_functions import set_environment_variables
 
 set_environment_variables()
 
+DESIGN_OPTIONS_DEFAULT = [
+    {"x": 0, "y": 0, "height": 100, "depth": 30, "width": 30}
+]
+
 
 class Parametrization(ViktorParametrization):
     introduction = Page('Introduction')
@@ -27,21 +32,23 @@ Using different platforms, the goal is to demonstrate how different groups and e
     introduction.viktor_and_forma_logo = Image('viktor-and-forma.png', max_width=900)
     introduction.stable_diffusion_logo = Image('Stable-Diffusion-Logo.png', max_width=400)
     analysis = Page('Analysis', views=['get_geojson_view', 'get_geometry_view', 'pdf_view', 'create_result'])
-    analysis.client_name = TextField('Client name')
-    analysis.company = TextField('Company')
-    analysis.date = DateField('Date')
-    analysis.import_from_forma_btn = ActionButton('Import input from Forma', 'import_from_forma')
-    analysis.geojson_file = FileField('Upload Geojson file', file_types=['.geojson'])
-    analysis.gltf_file = FileField('Upload GLTF file', file_types=['.gltf'])
     analysis.select_geometry = OptionField('Select geometry', options=['Surroundings', 'Terrain'], default='Terrain')
+    analysis.design_options = Table('Design options', default=DESIGN_OPTIONS_DEFAULT)
+    analysis.design_options.x = NumberField('x')
+    analysis.design_options.y = NumberField('y')
+    analysis.design_options.height = NumberField('Height')
+    analysis.design_options.depth = NumberField('Depth')
+    analysis.design_options.width = NumberField('Width')
+
+    reporting = Page('Reporting')
+    reporting.client_name = TextField('Client name', "John Doe")
+    reporting.company = TextField('Company', "AECTech inc.")
+    reporting.date = DateField('Date', default=datetime.date.today())
 
 
 class Controller(ViktorController):
     label = 'Generative Collaboration'
     parametrization = Parametrization
-
-    def import_from_forma(self, params, **kwargs):
-        return
 
     @GeoJSONView('GeoJSON view', duration_guess=1)
     def get_geojson_view(self, params, **kwargs):
@@ -73,10 +80,7 @@ class Controller(ViktorController):
         components.append(WordFileTag("date", str(params.analysis.date)))
 
         # Place image
-        if params.analysis.gltf_file:
-            gltf = params.analysis.gltf_file.file
-        else:
-            gltf = None
+        gltf = self._get_gltf(params)
         figure = gltf_raytrace(gltf, return_image=True)
         image = BytesIO()
         figure.save(image, format='png')
@@ -111,19 +115,22 @@ class Controller(ViktorController):
         access_token = two_legged_res.json()["access_token"]
         return access_token
 
+    @staticmethod
+    def _get_gltf(params):
+        if params.analysis.select_geometry == 'Surroundings':
+            return get_surroundings()
+        if params.analysis.select_geometry == 'Terrain':
+            return get_terrain()
+        raise UserError('Select a geometry to visualize')
+
     @GeometryView('Forma Geometry view', duration_guess=10)
     def get_geometry_view(self, params, **kwargs):
-        if params.analysis.select_geometry == 'Surroundings':
-            geometry = get_surroundings()
-        elif params.analysis.select_geometry == 'Terrain':
-            geometry = get_terrain()
-        else:
-            raise UserError('Select a geometry to visualize')
+        geometry = self._get_gltf(params)
         return GeometryResult(geometry)
 
     @ImageView("Ray-tracing", duration_guess=10)
     def create_result(self, params, **kwargs):
-        geometry = get_surroundings()
+        geometry = self._get_gltf(params)
         pil_image = gltf_raytrace(glb=geometry, return_image=True)
         image = BytesIO()
         pil_image.save(image, format='png')
