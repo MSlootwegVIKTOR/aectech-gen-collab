@@ -7,6 +7,7 @@ rays for image reasons.
 
 Install `pyembree` for a speedup (600k+ rays per second)
 """
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -16,10 +17,13 @@ import trimesh
 from viktor import File
 
 
-def gltf_raytrace(gltf: File, return_image: False):
-    # test on a simple mesh
-    path = Path(__file__).parent / 'featuretype.STL'
-    mesh = trimesh.load(path)
+def gltf_raytrace(gltf_file: File=None, return_image=False):
+    if gltf_file:
+        gltf = BytesIO(gltf_file.getvalue_binary())
+    else:
+        # test on a simple mesh
+        gltf = Path(__file__).parent / 'files' / 'geometry.gltf'
+    mesh = trimesh.load(gltf, force='mesh')
 
     # scene will have automatically generated camera and lights
     scene = mesh.scene()
@@ -27,21 +31,20 @@ def gltf_raytrace(gltf: File, return_image: False):
 
     # any of the automatically generated values can be overridden
     # set resolution, in pixels
-    scene.camera.resolution = [640, 480]
+    RESOLUTION = [640, 480]
+    scene.camera.resolution = RESOLUTION
     # set field of view, in degrees
     # make it relative to resolution so pixels per degree is same
     scene.camera.fov = 60 * (scene.camera.resolution / scene.camera.resolution.max())
 
     # convert the camera to rays with one ray per pixel
-    origins = []
-    vectors = []
-    pixels = []
-    # for idx, i in enumerate(np.linspace(min[0], max[0], 100)):
-    #     for jdx, j in enumerate(np.linspace(min[1], max[1], 100)):
-    #         origins.append([i, j, 100])
-    #         vectors.append([0, 0, 1])
-    #         pixels.append([idx, 100 - jdx])
+    origin_x = np.linspace(min[0], max[0], RESOLUTION[0])
+    origin_y = np.linspace(min[1], max[1], RESOLUTION[1])
     origins, vectors, pixels = scene.camera_rays()
+
+    for idx, pixel in enumerate(pixels):
+        origins[idx] = np.array([origin_x[pixel[0]], origin_y[pixel[1]], origins[idx][2]])
+        vectors[idx] = np.array([0, 0, -1])
 
     # do the actual ray- mesh queries
     points, index_ray, index_tri = mesh.ray.intersects_location(

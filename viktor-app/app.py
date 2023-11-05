@@ -2,7 +2,6 @@ import json
 from io import BytesIO
 from pathlib import Path
 
-import PIL
 import numpy as np
 from matplotlib import pyplot as plt
 from viktor import ViktorController, File
@@ -13,6 +12,7 @@ from viktor.utils import convert_word_to_pdf
 from viktor.views import GeoJSONView, GeoJSONResult, GeometryView, GeometryResult, PDFView, PDFResult, ImageView, \
     ImageResult
 from raytrace import gltf_raytrace
+
 
 class Parametrization(ViktorParametrization):
     client_name = TextField('Client name')
@@ -67,8 +67,14 @@ class Controller(ViktorController):
         components.append(WordFileTag("date", str(params.date)))
 
         # Place image
-        figure = self.create_figure(params)
-        word_file_figure = WordFileImage(figure, "figure", width=500)
+        if params.gltf_file:
+            gltf = params.gltf_file.file
+        else:
+            gltf = None
+        figure = gltf_raytrace(gltf, return_image=True)
+        image = BytesIO()
+        figure.save(image, format='png')
+        word_file_figure = WordFileImage(image, "figure", width=500)
         components.append(word_file_figure)
 
         # Get path to template and render word file
@@ -93,42 +99,6 @@ class Controller(ViktorController):
         image = BytesIO()
         pil_image.save(image, format='png')
         return ImageResult(image)
-
-    @staticmethod
-    def create_figure(params):
-        def func3(x, y):
-            return (1 - x / 2 + x ** 5 + y ** 3) * np.exp(-(x ** 2 + y ** 2))
-
-        # make these smaller to increase the resolution
-        dx, dy = 0.05, 0.05
-
-        x = np.arange(-3.0, 3.0, dx)
-        y = np.arange(-3.0, 3.0, dy)
-        X, Y = np.meshgrid(x, y)
-
-        # when layering multiple images, the images need to have the same
-        # extent.  This does not mean they need to have the same shape, but
-        # they both need to render to the same coordinate system determined by
-        # xmin, xmax, ymin, ymax.  Note if you use different interpolations
-        # for the images their apparent extent could be different due to
-        # interpolation edge effects
-
-        extent = np.min(x), np.max(x), np.min(y), np.max(y)
-        fig = plt.figure(frameon=False)
-
-        Z1 = np.add.outer(range(8), range(8)) % 2  # chessboard
-        im1 = plt.imshow(Z1, cmap=plt.cm.gray, interpolation='nearest',
-                         extent=extent)
-
-        Z2 = func3(X, Y)
-
-        im2 = plt.imshow(Z2, cmap=plt.cm.viridis, alpha=.9, interpolation='bilinear',
-                         extent=extent)
-        png_data = BytesIO()
-        fig.savefig(png_data, format='png')
-        plt.close()
-
-        return png_data
 
     def download_word_file(self, params, **kwargs):
         word_file = self.generate_word_document(params)
