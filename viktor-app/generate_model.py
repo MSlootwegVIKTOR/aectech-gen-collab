@@ -22,7 +22,7 @@ def generate_model(width, depth, height):
         paramDict=parameters
     ).outputContentItemsGltf2()
 
-    href = contentItemsGltf2["href"]
+    href = contentItemsGltf2[0]["href"]
 
     res = requests.get(href)
 

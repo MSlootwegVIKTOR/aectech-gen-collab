@@ -4,6 +4,7 @@ import numpy as np
 import os
 
 from generate_model import generate_model
+from height_map_utils import crop_map, merge_maps
 
 
 forma_base_url = "https://app.autodeskforma.eu"
@@ -78,16 +79,19 @@ def get_wind_parameters():
 
 
 def analyze(terrain_height_map, terrain_and_buildings_height_map):
-    min_height = min(min(terrain_and_buildings_height_map), min(terrain_height_map))
-    max_height = max(max(terrain_and_buildings_height_map), max(terrain_height_map))
+    min_height = min(terrain_and_buildings_height_map.min(), terrain_height_map.min())
+    max_height = max(terrain_and_buildings_height_map.max(), terrain_height_map.max())
 
     normalized_terrain_and_buildings_height_map = [
         round((x - min_height) / (max_height - min_height))
-        for x in terrain_and_buildings_height_map
+        for x in terrain_and_buildings_height_map.flatten().tolist()
     ]
     normalized_terrain_height_map = [
-        round((x - min_height) / (max_height - min_height)) for x in terrain_height_map
+        round((x - min_height) / (max_height - min_height)) for x in terrain_height_map.flatten().tolist()
     ]
+
+    print(normalized_terrain_height_map)
+    print(min_height, max_height)
 
     start = time.time()
     res = requests.post(
@@ -97,8 +101,8 @@ def analyze(terrain_height_map, terrain_and_buildings_height_map):
             "heightMaps": {
                 "terrainHeightArray": normalized_terrain_height_map,
                 "buildingAndTerrainHeightArray": normalized_terrain_and_buildings_height_map,
-                "minHeight": min_height,
-                "maxHeight": max_height,
+                "minHeight": int(min_height),
+                "maxHeight": int(max_height),
             },
             "windRose": get_wind_parameters(),
             "type": "comfort",
@@ -128,11 +132,10 @@ def create_geometry(options):
 
 
 def create_height_map(glb):
-    return [0] * 500 * 500
+    l = [[0] * 500] * 500
+    l[0][0] = 1
 
-
-def merge_height_maps(terrain, surrounding, alternative):
-    return [0] * 500 * 500
+    return {"x": 0, "y": 0, "map": np.array(l)}
 
 
 def generate(terrain_glb, surrounding_glb, site):
@@ -146,12 +149,13 @@ def generate(terrain_glb, surrounding_glb, site):
 
         alternative_height_map = create_height_map(alternative_glb)
 
-        analyze_result = analyze(
-            terrain_height_map,
-            merge_height_maps(
-                terrain_height_map, surrounding_height_map, alternative_height_map
-            ),
+        terrain_height_map_cropped = crop_map(terrain_height_map["map"])
+        merged_height_map = merge_maps(
+            terrain_height_map, surrounding_height_map, alternative_height_map
         )
+        merged_height_map_cropped = crop_map(merged_height_map)
+
+        analyze_result = analyze(terrain_height_map_cropped, merged_height_map_cropped)
 
         score = evaluate(analyze_result)
 
@@ -164,4 +168,4 @@ def evaluate(analysis_result):
     return analysis_result.mean()
 
 
-generate({}, {})
+generate({}, {}, {})
